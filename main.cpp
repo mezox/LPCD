@@ -11,7 +11,7 @@ int main(int argc, char** argv)
 {
 	if (argc != 5) {
 		fprintf(stderr, "Chybne zadane parametry!\nPouziti: zre_proj1_win.exe cb_lpc.txt cb_gain.txt in.cod out.wav\n");
-		getchar();
+		//getchar();
 		return 1;
 	}
 	else {
