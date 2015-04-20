@@ -10,7 +10,9 @@ namespace LPCD
 {
 	Decoder::Decoder()
 	{
-
+		uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+		generator = std::default_random_engine(seed);
+		distribution = std::normal_distribution<double>(0.0, 1.0);
 	}
 
 	Decoder::~Decoder()
@@ -100,7 +102,7 @@ namespace LPCD
 					ss >> cod_tmp;
 
 					/*if (i == 0 || i == 1) {
-						--cod_tmp;
+					--cod_tmp;
 					}*/
 					--cod_tmp;
 
@@ -127,7 +129,7 @@ namespace LPCD
 
 	void Decoder::decode()
 	{
-		#ifdef CPP11_SUPPORTED
+#ifdef CPP11_SUPPORTED
 		for (auto& i : m_data[static_cast<std::size_t>(COD_DATA::DATA)]) {
 			m_asym.push_back(m_codebook[i]);
 		}
@@ -135,16 +137,82 @@ namespace LPCD
 		for (auto& i : m_data[static_cast<std::size_t>(COD_DATA::GAIN)]) {
 			m_gsym.push_back(m_cbgains[i]);
 		}
-		#else
-			//DO IT OLD WAY
-		#endif
+#else
+		//DO IT OLD WAY
+#endif
 	}
 
-	void Decoder::synthetize()
-	{
-		std::vector<double> init_conditions(COEFF_CNT, 0.0);
-		std::vector<uint32_t> sound(FRAME_SAMPLES * m_cbgains.size(), 0);
+	std::vector<double> Decoder::doFilter(double& gain, std::vector<double>& input, std::vector<double>& initConditions) {
+		std::vector<double> output(input.size(), 0.0);
 
-		init_conditions.insert(init_conditions.begin(), 1.0);
+		for (int i = 0; i < output.size(); i++) {
+			output[i] = gain * input[i] + initConditions[0];
+			for (int j = 1; j < coefficients.size() - 1; j++) {
+				initConditions[j - 1] = initConditions[j] - coefficients[j] * output[i];
+			}
+		}
+
+		return output;
+	}
+
+	std::vector<int16_t> Decoder::synthetize()
+	{
+		std::vector<uint32_t> lags = m_data[static_cast<std::size_t>(COD_DATA::LAG)];
+
+		std::vector<double> initConditions(COEFF_CNT, 0.0);
+		std::vector<int16_t> result;
+
+		double gain;
+		uint32_t lag;
+		int nextVoiced = 0;
+
+		for (int i = 0; i < m_gsym.size(); i++) {
+			coefficients = m_asym[i];
+			coefficients.insert(coefficients.begin(), 1.0);
+			gain = m_gsym[i];
+			lag = lags[i];
+
+			std::vector<double>e(FRAME_SAMPLES, 0.0);
+
+			if (lag == 0 || lag == 65535) {
+				for (int i = 0; i < FRAME_SAMPLES; i++) {
+					e[i] = distribution(generator);
+				}
+			}
+			else {
+				int step = nextVoiced;
+				std::vector<int> position;
+				while (step <= FRAME_SAMPLES) {
+					position.push_back(step);
+					step += lag;
+				}
+				auto maximum = max_element(std::begin(position), std::end(position));
+				nextVoiced = *maximum + lag - FRAME_SAMPLES;
+				for (int i = 0; i < position.size() - 1; i++) {
+					e[position[i]] = 1;
+				}
+			}
+
+			double power = 0;
+			for (int i = 0; i < e.size(); i++) {
+				power += pow(e[i], 2);
+			}
+
+			power /= FRAME_SAMPLES;
+
+			for (int i = 0; i < e.size() - 1; i++) {
+				e[i] = e[i] / sqrt(power);
+			}
+
+			std::vector<double> filter = doFilter(gain, e, initConditions);;
+
+			for (std::vector<double>::iterator j = filter.begin(); j != filter.end(); j++) {
+				result.push_back((*j * INT16_MAX));
+			}
+
+		}
+		//getchar();
+		return result;
+
 	}
 }

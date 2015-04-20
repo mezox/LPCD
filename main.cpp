@@ -9,6 +9,30 @@
 
 int main(int argc, char** argv)
 {
+	if (argc != 5) {
+		fprintf(stderr, "Chybne zadane parametry!\nPouziti: zre_proj1_win.exe cb_lpc.txt cb_gain.txt in.cod out.wav\n");
+		getchar();
+		return 1;
+	}
+	else {
+		std::string codebookFilename = argv[1];
+		std::string gainCodebookFilename = argv[2];
+		std::string inFilename = argv[3];
+		std::string outFilename = argv[4];
+		std::vector<int16_t> sound;
+
+		LPCD::WavWriter ww(8000, 1, 1, outFilename);
+
+		LPCD::Decoder decoder;
+		decoder.loadFiles(codebookFilename, gainCodebookFilename, inFilename);
+		decoder.decode();
+		sound = decoder.synthetize();
+
+		ww.writeFile(sound);
+	}
+
+	/*Implementation without params*/
+	/*
 	std::string codebookFilename = "cb512.txt";
 	std::string gainCodebookFilename = "gcb128.txt";
 	std::string inFilename = "testmale.cod";
@@ -20,7 +44,8 @@ int main(int argc, char** argv)
 	LPCD::Decoder decoder;
 	decoder.loadFiles(codebookFilename, gainCodebookFilename, inFilename);
 	decoder.decode();
-	decoder.synthetize();
+	//decoder.synthetize();
+	*/
 
 	return 0;
 }

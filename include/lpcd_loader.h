@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <cstdint>
+#include <random>
+#include <chrono>
+#include <algorithm>
 
 namespace LPCD
 {
@@ -27,13 +30,14 @@ namespace LPCD
 
 		void loadFiles(const std::string&, const std::string&, const std::string&);
 		void decode();
-		void synthetize();
+		std::vector<int16_t> synthetize();
+		std::vector<double> doFilter(double&, std::vector<double>&, std::vector<double>&);
 
 	private:
 		void loadCodeBook(const std::string& cbfile);
 		void loadGains(const std::string& gcbfile);
 		void loadCod(const std::string& codfile);
-		
+
 
 	private:
 		std::vector<double>m_codebook[CB_VECTOR_CNT];
@@ -41,6 +45,10 @@ namespace LPCD
 		std::vector<uint32_t>m_data[static_cast<std::size_t>(COD_DATA::COLS)];
 		std::vector<std::vector<double>>m_asym;
 		std::vector<double>m_gsym;
+
+		std::normal_distribution<double> distribution;
+		std::default_random_engine generator;
+		std::vector<double> coefficients;
 	};
 }
 
